@@ -56,6 +56,31 @@ export function timestampMatchesSegment(
   );
 }
 
+/** Expande limites apenas para as bordas reais dos segmentos, sem cortar falas no meio. */
+export function alignCutToSpeech(
+  start: number, end: number, segments: TranscriptSegment[], maxDuration: number
+): { start: number; end: number } | null {
+  if (!segments.length) return { start, end };
+  const ordered = [...segments].filter(s => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start).sort((a,b) => a.start - b.start);
+  const first = ordered.find(s => s.end > start && s.start <= start + 1.5);
+  const last = [...ordered].reverse().find(s => s.start < end && s.end >= end - 1.5);
+  if (!first || !last) return null;
+  let adjustedStart = Math.min(start, first.start);
+  let adjustedEnd = Math.max(end, last.end);
+  // Inclui uma pergunta imediatamente anterior quando o corte começa com uma resposta curta.
+  const firstIndex = ordered.indexOf(first);
+  if (firstIndex > 0) {
+    const previous = ordered[firstIndex - 1];
+    const gap = first.start - previous.end;
+    if (gap >= 0 && gap <= 1.5 && /\\?\\s*$/.test(previous.text) &&
+        adjustedEnd - previous.start <= maxDuration) {
+      adjustedStart = previous.start;
+    }
+  }
+  if (adjustedEnd - adjustedStart > maxDuration) return null;
+  return { start: Math.max(0, adjustedStart), end: adjustedEnd };
+}
+
 /**
  * Valida a lista de cortes retornada pela IA.
  *
@@ -83,8 +108,8 @@ export function validateCuts(
   const isRealVideo = videoDuration > 0;
 
   for (const cut of cuts) {
-    const start = Number(cut.startTime);
-    const end = Number(cut.endTime);
+    let start = Number(cut.startTime);
+    let end = Number(cut.endTime);
 
     if (!Number.isFinite(start) || !Number.isFinite(end)) {
       rejected.push({ rank: cut.rank, theme: cut.theme, reason: 'Timestamps inválidos (NaN/Infinity)' });
@@ -127,6 +152,16 @@ export function validateCuts(
         });
         continue;
       }
+    }
+
+    if (segments.length > 0) {
+      const aligned = alignCutToSpeech(start, end, segments, maxCutDuration);
+      if (!aligned || (isRealVideo && aligned.end > videoDuration)) {
+        rejected.push({ rank: cut.rank, theme: cut.theme, reason: 'Não foi possível preservar as falas completas dentro da duração permitida' });
+        continue;
+      }
+      start = aligned.start;
+      end = aligned.end;
     }
 
     const duration = end - start;
