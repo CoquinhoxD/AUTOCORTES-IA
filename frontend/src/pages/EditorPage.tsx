@@ -23,6 +23,9 @@ const SUBTITLE_STYLES = [
   { id: 'podcast', label: 'Podcast', desc: 'Georgia serifada, margens maiores' },
 ] as const;
 
+// Mantido temporariamente para compatibilidade com o editor legado.
+void SubtitlesTab;
+
 export function EditorPage() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
