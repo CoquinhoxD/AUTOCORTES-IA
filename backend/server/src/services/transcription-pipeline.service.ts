@@ -189,6 +189,7 @@ export function cleanupTempFiles(targetPath?: string): void {
     }
 
     for (const entry of fs.readdirSync(pathToClean)) {
+      if (!targetPath && entry === 'transcription-cache') continue;
       fs.rmSync(path.join(pathToClean, entry), { recursive: true, force: true });
     }
     console.log(`[CLEANUP] Temporários removidos de: ${path.basename(pathToClean)}`);
