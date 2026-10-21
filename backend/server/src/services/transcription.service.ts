@@ -120,7 +120,7 @@ async function postAudio(
 export class GroqWhisperProvider implements TranscriptionProvider {
   constructor(
     private readonly apiKey: string,
-    private readonly model: string = 'whisper-large-v3'
+    private readonly model: string = 'whisper-large-v3-turbo'
   ) {}
 
   transcribe(audioPath: string): Promise<Transcription> {
@@ -347,12 +347,12 @@ export function getTranscriptionProvider(): TranscriptionProvider {
 
   if (configured === 'openai') {
     if (!key) throw new Error('TRANSCRIPTION_API_KEY não configurada para o provider openai.');
-    return new OpenAIWhisperProvider(key);
+    return new OpenAIWhisperProvider(key, process.env.TRANSCRIPTION_MODEL && process.env.TRANSCRIPTION_MODEL !== 'small' ? process.env.TRANSCRIPTION_MODEL : 'whisper-1');
   }
 
   if (configured === 'groq') {
     if (!key) throw new Error('TRANSCRIPTION_API_KEY não configurada para o provider groq.');
-    return new GroqWhisperProvider(key);
+    return new GroqWhisperProvider(key, process.env.TRANSCRIPTION_MODEL && process.env.TRANSCRIPTION_MODEL !== 'small' ? process.env.TRANSCRIPTION_MODEL : 'whisper-large-v3-turbo');
   }
 
   // Inferência automática pelo formato da chave
