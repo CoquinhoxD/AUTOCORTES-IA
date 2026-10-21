@@ -73,3 +73,6 @@ desktop.ini
 # ==========================================
 .git/
 .gitattributes
+/storage/
+supabase_pat.txt
+backend/.en

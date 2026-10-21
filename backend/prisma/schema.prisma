@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Video {
+  id           String   @id @default(uuid())
+  originalName String
+  filePath     String
+  mimeType     String
+  size         BigInt
+  duration     Float
+  width        Int
+  height       Int
+  fps          Float
+  status       String   @default("QUEUED")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transcript    Transcript?
+  cuts          Cut[]
+  job           Job?
+  analysisResult AnalysisResult?
+}
+
+model Transcript {
+  id        String   @id @default(uuid())
+  videoId   String   @unique
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  fullText  String
+  language  String
+  provider  String
+  createdAt DateTime @default(now())
+
+  segments  TranscriptSegment[]
+}
+
+model TranscriptSegment {
+  id              String     @id @default(uuid())
+  transcriptId    String
+  transcript      Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  segmentIndex    Int
+  startTime       Float
+  endTime         Float
+  text            String
+
+  @@index([transcriptId])
+}
+
+model Cut {
+  id                   String   @id @default(uuid())
+  videoId              String
+  video                Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  rank                 Int
+  startTime            Float
+  endTime              Float
+  duration             Float
+  theme                String
+  subject              String
+  whyViral             String
+  hook                 String
+  strongestMoment      String
+  conclusion           String
+  retentionScore       Int
+  commentsScore        Int
+  sharesScore          Int
+  controversyScore     Int
+  curiosityScore       Int
+  emotionScore         Int
+  replayScore          Int
+  viralPotential       Int
+  headline             String
+  alternativeHeadline  String
+  createdAt            DateTime @default(now())
+
+  @@index([videoId])
+}
+
+model Job {
+  id            String   @id @default(uuid())
+  videoId       String   @unique
+  video         Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  status        String   @default("QUEUED")
+  progress      Int      @default(0)
+  currentStep   String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+/// Resultado consolidado da análise de IA para o vídeo.
+model AnalysisResult {
+  id             String   @id @default(uuid())
+  videoId        String   @unique
+  video          Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  /// Lista de polêmicas identificadas (JSON string — SQLite não tem arrays nativos).
+  controversies  String   @default("[]")
+  /// Ranks do TOP 5 (JSON string).
+  top5           String   @default("[]")
+  /// Quantos cortes foram solicitados (padrão 20).
+  requestedCuts  Int      @default(20)
+  /// Quantos cortes válidos foram efetivamente gerados.
+  generatedCuts  Int      @default(0)
+  /// Aviso quando o conteúdo não tinha material para 20 cortes.
+  notice         String?
+  /// Cortes rejeitados pela validação (JSON string).
+  rejected       String   @default("[]")
+  createdAt      DateTime @default(now())
+
+  @@index([videoId])
+}
