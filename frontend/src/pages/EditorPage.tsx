@@ -6,7 +6,7 @@ import { VideoClipPlayer } from '../components/VideoClipPlayer';
 import { TranscriptViewer } from '../components/TranscriptViewer';
 import { formatDuration, formatTimecode, formatFps, formatResolution } from '../utils/format';
 
-type EditorTab = 'preview' | 'subtitles' | 'framing' | 'metadata';
+type EditorTab = 'preview' | 'framing' | 'metadata';
 
 const FRAMING_MODES = [
   { id: 'center', label: 'Centralizado', desc: 'Crop central simples (rápido)' },
@@ -14,13 +14,6 @@ const FRAMING_MODES = [
   { id: 'face', label: 'Rastreamento de rosto', desc: 'Detecta e segue o rosto do falante (experimental)' },
 ] as const;
 
-const SUBTITLE_STYLES = [
-  { id: 'viral', label: 'Viral clássico', desc: 'Branco com contorno preto, estilo TikTok/Reels' },
-  { id: 'word', label: 'Palavra destacada', desc: 'Uma palavra por vez, destaque animado' },
-  { id: 'minimal', label: 'Minimalista', desc: 'Fino, sem sombra, discreto' },
-  { id: 'gamer', label: 'Gamer', desc: 'Amarelo Impact, contorno grosso' },
-  { id: 'podcast', label: 'Podcast', desc: 'Georgia serifada, margens maiores' },
-] as const;
 
 export function EditorPage() {
   const { videoId } = useParams<{ videoId: string }>();
@@ -105,7 +98,7 @@ export function EditorPage() {
         alternativeHeadline: selectedCut.alternativeHeadline,
         framingMode: 'blur',
         subtitleStyle: 'viral',
-        addSubtitles: true,
+        addSubtitles: false,
       });
     }
   }, [selectedCut]);
@@ -180,8 +173,8 @@ export function EditorPage() {
       const response = await api.exportCut(videoId!, {
         startTime: editState.startTime,
         endTime: editState.endTime,
-        reencode: true,
-        vertical: true,
+        reencode: false,
+        vertical: false,
         addSubtitles: editState.addSubtitles,
         subtitleStyle: editState.subtitleStyle,
       });
@@ -205,9 +198,9 @@ export function EditorPage() {
         rank: i + 1,
         startTime: cut.startTime,
         endTime: cut.endTime,
-        reencode: true,
-        vertical: true,
-        addSubtitles: true,
+        reencode: false,
+        vertical: false,
+        addSubtitles: false,
         subtitleStyle: 'viral' as const,
       }));
 
@@ -304,7 +297,6 @@ export function EditorPage() {
               <div className="border-b border-zinc-800 flex gap-1 p-1">
                 {[
                   { id: 'preview', label: '▶ Preview' },
-                  { id: 'subtitles', label: '📝 Legendas' },
                   { id: 'framing', label: '📐 Enquadramento' },
                   { id: 'metadata', label: '📋 Metadados' },
                 ].map((tab) => (
@@ -321,7 +313,6 @@ export function EditorPage() {
 
               <div className="p-4">
                 {activeTab === 'preview' && <PreviewTab cut={selectedCut} editState={editState} setEditState={setEditState} onSeek={handleSeek} playerTime={playerTime} transcript={transcript} />}
-                {activeTab === 'subtitles' && <SubtitlesTab editState={editState} setEditState={setEditState} transcript={transcript} onSeek={handleSeek} />}
                 {activeTab === 'framing' && <FramingTab editState={editState} setEditState={setEditState} />}
                 {activeTab === 'metadata' && <MetadataTab editState={editState} setEditState={setEditState} cut={selectedCut} />}
               </div>
