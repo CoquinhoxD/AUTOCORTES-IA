@@ -2,22 +2,20 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PATHS } from '../config/paths.js';
-import { ffmpegCutClip, ffmpegBurnSubtitles, ffmpegVerticalCrop, ffmpegGenerateSRT } from '../services/ffmpeg.service.js';
+import { ffmpegCutClip, ffmpegVerticalCrop } from '../services/ffmpeg.service.js';
 import path from 'node:path';
 
 const CutClipSchema = z.object({
   startTime: z.number().min(0),
   endTime: z.number().min(0),
-  reencode: z.boolean().default(true),
+  reencode: z.boolean().default(false),
   vertical: z.boolean().default(false),
-  addSubtitles: z.boolean().default(false),
-  subtitleStyle: z.enum(['viral', 'word', 'minimal', 'gamer', 'podcast', 'custom']).default('viral'),
 });
 
 export async function registerExportRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Exporta um único corte do vídeo original.
-   * Body: { startTime, endTime, reencode?, vertical?, addSubtitles?, subtitleStyle? }
+   * Body: { startTime, endTime, reencode?, vertical? }
    * Retorna: { outputPath, duration, size }
    */
   app.post<{ Params: { id: string }; Body: z.infer<typeof CutClipSchema> }>(
@@ -56,22 +54,7 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
           currentPath = verticalPath;
         }
 
-        // 3. Se legendas, gerar SRT e queimar
-        if (body.addSubtitles) {
-          const transcript = await prisma.transcript.findUnique({
-            where: { videoId: id },
-            include: { segments: { orderBy: { segmentIndex: 'asc' } } },
-          });
-
-          if (transcript) {
-            const srtPath = path.join(PATHS.results, `${id}_subtitles.srt`);
-            await ffmpegGenerateSRT(transcript.segments, srtPath, body.startTime, body.endTime);
-
-            const subtitledPath = path.join(PATHS.results, `subtitled_${outputFilename}`);
-            await ffmpegBurnSubtitles(currentPath, srtPath, subtitledPath, body.subtitleStyle);
-            currentPath = subtitledPath;
-          }
-        }
+        // Transcrição é utilizada somente para análise, nunca na exportação.
 
         // Mover resultado final se passou por múltiplos passos
         if (currentPath !== outputPath) {
@@ -111,22 +94,24 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
         return reply.code(404).send({ error: 'Vídeo não encontrado.' });
       }
 
-      if (!cuts || cuts.length === 0) {
+      if (!Array.isArray(cuts) || cuts.length === 0) {
         return reply.code(400).send({ error: 'Nenhum corte informado.' });
       }
-
-      // Carregar transcrição uma vez para legendas
-      const transcript = await prisma.transcript.findUnique({
-        where: { videoId: id },
-        include: { segments: { orderBy: { segmentIndex: 'asc' } } },
-      });
 
       const results = [];
       const errors = [];
 
-      for (const cut of cuts) {
+      for (const rawCut of cuts) {
+        const rank = rawCut?.rank;
         try {
-          const outputFilename = `${id}_cut_${cut.rank}_${cut.startTime.toFixed(1)}_${cut.endTime.toFixed(1)}.mp4`;
+          const cut = CutClipSchema.parse(rawCut);
+          if (cut.endTime <= cut.startTime || cut.endTime > video.duration) {
+            throw new Error('Intervalo do corte inválido ou fora da duração do vídeo.');
+          }
+          if (!Number.isInteger(rank) || rank < 1) {
+            throw new Error('Rank do corte inválido.');
+          }
+          const outputFilename = `${id}_cut_${rank}_${cut.startTime.toFixed(1)}_${cut.endTime.toFixed(1)}.mp4`;
           const outputPath = path.join(PATHS.results, outputFilename);
 
           let currentPath = video.filePath;
@@ -142,16 +127,6 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
             currentPath = verticalPath;
           }
 
-          // Legendas
-          if (cut.addSubtitles && transcript) {
-            const srtPath = path.join(PATHS.results, `${id}_cut_${cut.rank}.srt`);
-            await ffmpegGenerateSRT(transcript.segments, srtPath, cut.startTime, cut.endTime);
-
-            const subtitledPath = path.join(PATHS.results, `subtitled_${outputFilename}`);
-            await ffmpegBurnSubtitles(currentPath, srtPath, subtitledPath, cut.subtitleStyle);
-            currentPath = subtitledPath;
-          }
-
           if (currentPath !== outputPath) {
             const fs = await import('fs');
             fs.renameSync(currentPath, outputPath);
@@ -161,7 +136,7 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
           const stats = fs.statSync(outputPath);
 
           results.push({
-            rank: cut.rank,
+            rank: rank,
             outputPath,
             filename: outputFilename,
             duration: cut.endTime - cut.startTime,
@@ -169,7 +144,7 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
             downloadUrl: `/api/videos/${id}/download/${encodeURIComponent(outputFilename)}`,
           });
         } catch (error) {
-          errors.push({ rank: cut.rank, error: (error as Error).message });
+          errors.push({ rank: rank, error: (error as Error).message });
         }
       }
 
@@ -184,6 +159,9 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     '/api/videos/:id/download/:filename',
     async (request, reply) => {
       const { filename } = request.params;
+      if (path.basename(filename) !== filename || !filename.startsWith(`${request.params.id}_cut_`) || !filename.endsWith('.mp4')) {
+        return reply.code(400).send({ error: 'Nome de arquivo inválido.' });
+      }
       const filePath = path.join(PATHS.results, filename);
 
       const fs = await import('fs');
@@ -197,31 +175,4 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     }
   );
 
-  /**
-   * Gera apenas o arquivo SRT para um corte.
-   */
-  app.post<{ Params: { id: string }; Body: { startTime: number; endTime: number } }>(
-    '/api/videos/:id/generate-srt',
-    async (request, reply) => {
-      const { id } = request.params;
-      const { startTime, endTime } = request.body;
-
-      const transcript = await prisma.transcript.findUnique({
-        where: { videoId: id },
-        include: { segments: { orderBy: { segmentIndex: 'asc' } } },
-      });
-
-      if (!transcript) {
-        return reply.code(404).send({ error: 'Transcrição não encontrada.' });
-      }
-
-      const srtPath = path.join(PATHS.results, `${id}_${startTime}_${endTime}.srt`);
-      await ffmpegGenerateSRT(transcript.segments, srtPath, startTime, endTime);
-
-      return reply.send({
-        srtPath,
-        downloadUrl: `/api/videos/${id}/download/${encodeURIComponent(path.basename(srtPath))}`,
-      });
-    }
-  );
 }
