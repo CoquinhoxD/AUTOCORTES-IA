@@ -9,12 +9,12 @@ REGRAS INVIOLÁVEIS:
 4. Todo corte deve ter endTime > startTime.
 5. Todo corte deve ter endTime <= duração do vídeo informada.
 6. duration DEVE ser exatamente endTime - startTime.
-7. Não escolha apenas uma frase boa. Escolha o assunto completo.
+7. Não escolha apenas uma frase boa. Escolha o assunto completo. Avalie 20 segundos antes e depois de cada momento forte, quando disponíveis.
 8. Nunca interrompa uma história antes da revelação.
 9. Nunca interrompa uma pergunta antes da resposta, quando a resposta faz parte do contexto.
 10. Nunca interrompa uma piada antes do punchline.
-11. O corte precisa fazer sentido sozinho e ser compreensível.
-12. Evite cortes repetitivos. Cada corte deve ser distinto dos outros.
+11. O corte precisa fazer sentido sozinho e ser compreensível. Nunca comece com pronomes sem referente, resposta sem pergunta ou conclusão sem premissa.
+12. Evite cortes repetitivos. Cada corte deve ser distinto dos outros.\n13. Considere começo e fim de cada segmento de fala; não selecione timestamps no meio de palavras ou sentenças.\n14. Rejeite candidatos que dependam de informações fora do trecho.\n15. Antes de atribuir nota viral, avalie coerência narrativa, pergunta-resposta e integridade das falas. Um trecho sem conclusão não deve ser selecionado, mesmo que tenha alto potencial viral.
 
 CRITÉRIOS DE SELEÇÃO (priorize cortes com maior potencial):
 - Retenção: a pessoa assiste do início ao fim?
