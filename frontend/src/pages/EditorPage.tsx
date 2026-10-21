@@ -15,6 +15,14 @@ const FRAMING_MODES = [
 ] as const;
 
 
+const SUBTITLE_STYLES = [
+  { id: 'viral', label: 'Viral clássico', desc: 'Branco com contorno preto, estilo TikTok/Reels' },
+  { id: 'word', label: 'Palavra destacada', desc: 'Uma palavra por vez, destaque animado' },
+  { id: 'minimal', label: 'Minimalista', desc: 'Fino, sem sombra, discreto' },
+  { id: 'gamer', label: 'Gamer', desc: 'Amarelo Impact, contorno grosso' },
+  { id: 'podcast', label: 'Podcast', desc: 'Georgia serifada, margens maiores' },
+] as const;
+
 export function EditorPage() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
