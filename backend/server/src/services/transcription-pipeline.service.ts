@@ -227,23 +227,36 @@ export async function transcribe(
 
     onProgress?.({ type: 'progress', percent: 15, message: `Dividido em ${chunkPaths.length} chunks`, stage: 'chunking', timestamp: Date.now(), total_chunks: chunkPaths.length });
 
-    for (let i = 0; i < chunkPaths.length; i++) {
-      const progress = 20 + (i / chunkPaths.length) * 70;
-      onProgress?.({ 
-        type: 'progress', 
-        percent: Math.round(progress), 
-        message: `Transcrevendo chunk ${i + 1}/${chunkPaths.length}...`, 
-        stage: 'transcribing',
-        timestamp: Date.now(),
-        current_chunk: i + 1,
-        total_chunks: chunkPaths.length,
-        chunk_start: chunkStartTimes[i]
-      });
-      
-      console.log(`[WHISPER] Transcrevendo chunk ${i + 1}/${chunkPaths.length}...`);
-      const result = await provider.transcribe(chunkPaths[i]);
-      results.push(result);
-    }
+    // Concorrência limitada: acelera Groq/OpenAI sem disparar todas as requisições.
+    // O provedor local permanece sequencial para evitar disputa por CPU/GPU.
+    const requested = Number(process.env.TRANSCRIPTION_CONCURRENCY || '2');
+    const concurrency = provider.constructor.name === 'LocalWhisperProvider'
+      ? 1
+      : Math.max(1, Math.min(3, Number.isFinite(requested) ? Math.floor(requested) : 2));
+    const orderedResults: Transcription[] = new Array(chunkPaths.length);
+    let nextIndex = 0;
+    let completed = 0;
+    const worker = async () => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= chunkPaths.length) return;
+        console.log(`[WHISPER] Transcrevendo chunk ${i + 1}/${chunkPaths.length}...`);
+        orderedResults[i] = await provider.transcribe(chunkPaths[i]);
+        completed++;
+        onProgress?.({
+          type: 'progress',
+          percent: Math.round(20 + (completed / chunkPaths.length) * 75),
+          message: `Transcritos ${completed}/${chunkPaths.length} blocos`,
+          stage: 'transcribing',
+          timestamp: Date.now(),
+          current_chunk: completed,
+          total_chunks: chunkPaths.length,
+          chunk_start: chunkStartTimes[i]
+        });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, chunkPaths.length) }, () => worker()));
+    results.push(...orderedResults);
 
     const merged = mergeChunkTranscriptions(results, chunkStartTimes);
     console.log(`[WHISPER] Transcrição concluída: ${merged.segments.length} segmentos mesclados`);
