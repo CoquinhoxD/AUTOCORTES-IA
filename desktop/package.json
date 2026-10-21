@@ -1,0 +1,34 @@
+{
+  "name": "viral-cut-ai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Viral Cut AI — encontre os melhores cortes do seu vídeo",
+  "author": {
+    "name": "Viral Cut AI"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "rebuild": "electron-rebuild -f -w @prisma/client",
+    "preinstall": "electron-builder install-app-deps",
+    "fetch-ffmpeg": "node scripts/fetch-ffmpeg.js",
+    "make-db-seed": "node scripts/make-db-seed.js",
+    "prestart": "node scripts/check-build.js",
+    "predist": "node scripts/make-db-seed.js",
+    "dist": "npm run build && electron-builder --win --publish never",
+    "predist:dir": "node scripts/make-db-seed.js",
+    "dist:dir": "npm run build && electron-builder --win --dir --publish never"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "@electron/rebuild": "^3.7.1",
+    "typescript": "^5.5.0"
+  }
+}

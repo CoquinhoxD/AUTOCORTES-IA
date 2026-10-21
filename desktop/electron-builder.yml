@@ -1,0 +1,68 @@
+appId: com.viralcutai.desktop
+productName: Viral Cut AI
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+# Só backend compilado, dependências de produção e o build do Vite.
+# Os binários do FFmpeg entram via extraResources.
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: ../backend/dist
+    to: backend/dist
+  # O dist é ESM (import statements) e o Node só aceita isso se o
+  # package.json mais próximo declarar "type": "module".
+  - from: ../backend/package.json
+    to: backend/package.json
+  - from: ../backend/node_modules
+    to: backend/node_modules
+  # Só o schema e o banco inicial (vazio). O dev.db NÃO entra: é o banco de
+  # desenvolvimento e carregaria os vídeos de teste para o usuário final.
+  - from: ../backend/prisma
+    to: backend/prisma
+    filter:
+      - schema.prisma
+      - seed.db
+  - from: ../frontend/dist
+    to: web
+  - from: bin
+    to: bin
+    filter:
+      - ffmpeg.exe
+      - ffprobe.exe
+
+asar: true
+
+win:
+  # Sem certificado de assinatura o Windows mostra "Aviso de segurança" ao
+  # instalar — normal para app não assinado.
+  #
+  # Desligar isto evita o pacote winCodeSign, que traz symlinks de macOS e
+  # exige Modo Desenvolvedor do Windows para ser extraído. O custo é perder
+  # ícone e versão no executável — o app funciona igual.
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ViralCutAI-${version}-Setup.${ext}
+  # Ícone omitido de propósito: sem .ico o electron-builder usa o default.
+  # Para personalizar, coloque build/icon.ico (mín. 256x256).
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Viral Cut AI
+
+# Reconstrói binários nativos (Prisma engine) contra a ABI do Electron.
+# Sem isso o backend falha ao abrir o banco com "invalid ELF/PE image".
+npmRebuild: true
+buildDependenciesFromSource: false

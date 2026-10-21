@@ -1,0 +1,10 @@
+# ==========================================
+# Binários do FFmpeg (217MB cada)
+#
+# São baixados por `npm run fetch-ffmpeg` e nunca versionados —
+# apenas o app empacotado precisa deles.
+# ==========================================
+bin/
+
+# Artefatos do electron-builder
+release/
