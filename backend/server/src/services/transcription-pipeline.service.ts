@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import fs from 'fs';
+import crypto from 'node:crypto';
 import path from 'path';
 import type { Transcription, TranscriptionProvider } from './transcription.service.js';
 import { getTranscriptionProvider } from './transcription.service.js';
@@ -18,6 +19,28 @@ const CHUNK_OVERLAP_SEC = 2;       // evita cortar palavras no meio
  * são fundidos, porque no Whisper isso é a norma e não duplicação.
  */
 const CHUNK_OVERLAP_MERGE_RATIO = 0.2;
+const CACHE_VERSION = 1;
+function cacheLocation(audioPath: string, provider: string): string {
+  const st = fs.statSync(audioPath);
+  const key = crypto.createHash('sha256').update(JSON.stringify({
+    v: CACHE_VERSION, path: path.resolve(audioPath), size: st.size, mtime: st.mtimeMs,
+    provider, model: process.env.TRANSCRIPTION_MODEL || '',
+  })).digest('hex');
+  return path.join(PATHS.temp, 'transcription-cache', `${key}.json`);
+}
+function readCached(file: string): Transcription | null {
+  try {
+    const value = JSON.parse(fs.readFileSync(file, 'utf8')) as Transcription;
+    return Array.isArray(value.segments) && typeof value.fullText === 'string' ? value : null;
+  } catch { return null; }
+}
+function saveCached(file: string, result: Transcription): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(result));
+  fs.renameSync(tmp, file);
+}
+
 
 function runFfmpeg(args: string[], label: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -201,6 +224,13 @@ export async function transcribe(
 ): Promise<Transcription> {
   const provider: TranscriptionProvider = getTranscriptionProvider();
 
+  const cacheFile = cacheLocation(audioPath, provider.constructor.name);
+  const cached = readCached(cacheFile);
+  if (cached) {
+    console.log('[WHISPER] Transcrição reutilizada do cache');
+    onProgress?.({ type: 'progress', percent: 100, message: 'Transcrição recuperada do cache', stage: 'complete', timestamp: Date.now(), segments: cached.segments.length });
+    return cached;
+  }
   const shouldChunk = await needsChunking(audioPath);
 
   if (!shouldChunk) {
@@ -208,6 +238,7 @@ export async function transcribe(
     onProgress?.({ type: 'progress', percent: 10, message: 'Iniciando transcrição...', stage: 'transcribing', timestamp: Date.now() });
     const result = await provider.transcribe(audioPath);
     onProgress?.({ type: 'progress', percent: 90, message: 'Finalizando...', stage: 'finalizing', timestamp: Date.now() });
+    saveCached(cacheFile, result);
     console.log(`[WHISPER] Transcrição concluída: ${result.segments.length} segmentos`);
     onProgress?.({ type: 'progress', percent: 100, message: 'Transcrição concluída', stage: 'complete', timestamp: Date.now(), segments: result.segments.length });
     return result;
@@ -259,6 +290,7 @@ export async function transcribe(
     results.push(...orderedResults);
 
     const merged = mergeChunkTranscriptions(results, chunkStartTimes);
+    saveCached(cacheFile, merged);
     console.log(`[WHISPER] Transcrição concluída: ${merged.segments.length} segmentos mesclados`);
     onProgress?.({ type: 'progress', percent: 100, message: 'Transcrição concluída', stage: 'complete', timestamp: Date.now(), segments: merged.segments.length });
     return merged;
