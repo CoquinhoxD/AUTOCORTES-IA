@@ -1,0 +1,75 @@
+# ==========================================
+# Dependências e artefatos de build
+# ==========================================
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# ==========================================
+# Segredos — NUNCA versionar
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ==========================================
+# Banco de dados local (SQLite)
+# ==========================================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# ==========================================
+# Storage — vídeos e áudio ficam fora do Git
+# ==========================================
+storage/*
+!storage/.gitkeep
+!storage/uploads/
+!storage/audio/
+!storage/temp/
+!storage/results/
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/audio/*
+!storage/audio/.gitkeep
+storage/temp/*
+!storage/temp/.gitkeep
+storage/results/*
+!storage/results/.gitkeep
+
+# ==========================================
+# Logs e temporários do sistema
+# ==========================================
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+.temp/
+tmp/
+
+# ==========================================
+# Editores e SO
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# Sistema de controle de versão
+# ==========================================
+.git/
+.gitattributes
