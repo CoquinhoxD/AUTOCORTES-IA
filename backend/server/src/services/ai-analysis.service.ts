@@ -31,6 +31,12 @@ interface AiProvider {
   call(systemPrompt: string, userPrompt: string): Promise<string>;
 }
 
+// Test-only injection point. Production always resolves the configured provider.
+let providerOverride: AiProvider | null = null;
+export function setAiProvider(provider: AiProvider | null): void {
+  providerOverride = provider;
+}
+
 /**
  * Provider OpenAI-compatible (Groq, OpenAI, Together, OpenRouter, Ollama, etc).
  */
@@ -413,7 +419,7 @@ function renumber(cuts: AICut[]): AICut[] {
  * Analisa a transcrição e retorna JSON estruturado validado com Zod.
  */
 export async function analyzeWithAi(options: AnalyzeOptions): Promise<AIAnalysis> {
-  const provider = await createAiProvider();
+  const provider = providerOverride ?? await createAiProvider();
   const isLocal = provider instanceof LocalMockAiProvider;
 
   const estimated = estimateTokens(buildUserPrompt(options));
@@ -421,6 +427,14 @@ export async function analyzeWithAi(options: AnalyzeOptions): Promise<AIAnalysis
     !isLocal && estimated > MAP_INPUT_TOKEN_BUDGET
       ? splitSegmentsIntoBatches(options.segments)
       : [options.segments];
+
+  // Não descarte silenciosamente o final do conteúdo em vídeos longos.
+  if (batches.length > MAX_BATCHES) {
+    throw new AiAnalysisError(
+      `Transcrição extensa demais para análise segura (${batches.length} blocos; limite ${MAX_BATCHES}). Divida o vídeo em partes menores.`,
+      0
+    );
+  }
 
   if (batches.length <= 1) {
     console.log(`[AI] Análise iniciada (1 requisição, ~${estimated} tokens)`);
@@ -525,7 +539,6 @@ export function splitSegmentsIntoBatches(
 
     if (current.length > 0 && used + cost > budget) {
       batches.push(current);
-      if (batches.length >= MAX_BATCHES) return batches;
       current = [];
       used = 0;
     }

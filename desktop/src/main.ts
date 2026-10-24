@@ -91,6 +91,7 @@ function startBackend(): Promise<number> {
     const databaseUrl = ensureDatabase();
 
     const child = fork(entry, [], {
+      cwd: isDev ? path.dirname(entry) : path.join(process.resourcesPath, 'backend'),
       env: {
         ...process.env,
         NODE_ENV: 'production',
@@ -105,6 +106,7 @@ function startBackend(): Promise<number> {
         // Porta 0 deixa o sistema escolher uma livre — evita conflito com
         // um servidor de desenvolvimento já rodando na 3000.
         PORT: process.env.PORT ?? '0',
+        HOST: '127.0.0.1',
       },
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });

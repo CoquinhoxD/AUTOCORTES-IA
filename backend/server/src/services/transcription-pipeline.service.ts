@@ -7,6 +7,7 @@ import path from 'path';
 import type { Transcription, TranscriptionProvider } from './transcription.service.js';
 import { getTranscriptionProvider } from './transcription.service.js';
 import { PATHS } from '../config/paths.js';
+import { binPath } from './ffmpeg.service.js';
 
 const execAsync = promisify(execCallback);
 
@@ -44,7 +45,7 @@ function saveCached(file: string, result: Transcription): void {
 
 function runFfmpeg(args: string[], label: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn('ffmpeg', args, { stdio: 'ignore' });
+    const proc = spawn(binPath('ffmpeg'), args, { stdio: 'ignore' });
     proc.on('error', (err) => {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         reject(new Error(`${label}: ffmpeg não encontrado no PATH.`));
@@ -64,7 +65,7 @@ function runFfmpeg(args: string[], label: string): Promise<void> {
 
 async function getAudioDuration(audioPath: string): Promise<number> {
   const { stdout } = await execAsync(
-    `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`
+    `"${binPath('ffprobe')}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`
   );
   return Number(stdout.trim());
 }

@@ -34,6 +34,13 @@ describe('estimateTokens', () => {
 });
 
 describe('splitSegmentsIntoBatches', () => {
+  it('não descarta o final mesmo quando passa de 40 blocos', () => {
+    const segments = makeSegments(1500, 400);
+    const batches = splitSegmentsIntoBatches(segments);
+    expect(batches.length).toBeGreaterThan(40);
+    expect(batches.flat()).toHaveLength(segments.length);
+    expect(batches.flat().at(-1)).toEqual(segments.at(-1));
+  });
   it('mantém a transcrição inteira — nenhum segmento some', () => {
     const segments = makeSegments(400);
     const batches = splitSegmentsIntoBatches(segments);
