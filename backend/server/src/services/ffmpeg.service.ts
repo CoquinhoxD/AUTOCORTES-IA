@@ -28,7 +28,7 @@ function resolveBinDir(): string | null {
 }
 
 /** Caminho absoluto quando embutido, senão o nome (resolvido pelo PATH). */
-function binPath(name: 'ffmpeg' | 'ffprobe'): string {
+export function binPath(name: 'ffmpeg' | 'ffprobe'): string {
   const dir = resolveBinDir();
   return dir ? path.join(dir, process.platform === 'win32' ? `${name}.exe` : name) : name;
 }
