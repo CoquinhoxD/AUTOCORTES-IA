@@ -381,7 +381,7 @@ export function SettingsPage() {
                         {!isActive && (
                           <button
                             type="button"
-                            onClick={() => patch({ aiProvider: pid })}
+                            onClick={() => patch({ aiProvider: pid, aiModel: provider.defaultModel })}
                             className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
                           >
                             Usar este
