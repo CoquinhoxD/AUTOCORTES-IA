@@ -32,6 +32,7 @@ jobs:
       - name: Test and compile
         shell: pwsh
         run: |
+          npm run prisma:generate --prefix backend
           npm test --prefix backend -- --silent
           npm test --prefix frontend -- --watch=false --silent
           npm run build --prefix backend
@@ -42,6 +43,8 @@ jobs:
         run: npm run dist --prefix desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify bundled Prisma client
+        run: node desktop/scripts/verify-packaged-prisma.cjs
       - name: Publish installer artifact
         uses: actions/upload-artifact@v4
         with:

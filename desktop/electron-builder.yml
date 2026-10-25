@@ -21,6 +21,10 @@ extraResources:
     to: backend/package.json
   - from: ../backend/node_modules
     to: backend/node_modules
+  # O electron-builder pode ignorar pastas ocultas dentro de node_modules.
+  # Sem o client gerado, o app instala mas falha com "PrismaClient did not initialize".
+  - from: ../backend/node_modules/.prisma/client
+    to: backend/node_modules/.prisma/client
   # Só o schema e o banco inicial (vazio). O dev.db NÃO entra: é o banco de
   # desenvolvimento e carregaria os vídeos de teste para o usuário final.
   - from: ../backend/prisma
